@@ -85,4 +85,20 @@ const fetchMe = (req,res)=>{
         return res.status(500).json({message : err.message})
     }
 }
-module.exports = { login, signup, fetchMe }
+const logout = (req, res) => {
+  try {
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      path: "/api/v1/auth/refresh",
+    });
+    return res.status(200).json({ message: "OK" });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+module.exports = { login, signup, fetchMe,logout }
