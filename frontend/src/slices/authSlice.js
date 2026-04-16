@@ -15,7 +15,7 @@ const  initialState= {
             const res = await api.post("/auth/login",{ email,password });
             return res.data;
         }catch(err){
-            return thunkAPI.rejectWithValue(err.message ||"login failed");
+            return thunkAPI.rejectWithValue(err.response?.data?.message || err.message ||"login failed");
 
         }
     },
@@ -28,7 +28,7 @@ export const  signup = createAsyncThunk(
             const res = await api.post("/auth/signup",{name, email,password});
             return res.data;
         }catch(err){
-            return thunkAPI.rejectWithValue(err.message ||"signup failed");
+            return thunkAPI.rejectWithValue(err.response?.data?.message || err.message ||"signup failed");
         }
     },
  );
@@ -51,7 +51,7 @@ export const  signup = createAsyncThunk(
 
     }
     catch(err){
-        return thunkAPI.rejectWithValue(err.message ||"fetch me failed");
+        return thunkAPI.rejectWithValue(err.response?.data?.message || err.message ||"fetch me failed");
     }
  });
 
@@ -84,16 +84,22 @@ const authSlice = createSlice({
                 state.error = null;
         }
         function rejected(state, action) {
-            state.error = action.playload,
+            state.error = action.payload,
                 state.status = "error",
                 state.user = null;
         }
         builder
             .addCase(login.pending, pending)
-            .addCase(login.fulfilled, fulfilled)
+            .addCase(login.fulfilled, (state) => {
+                state.status = "success";
+                state.error = null;
+            })
             .addCase(login.rejected, rejected)
             .addCase(signup.pending, pending)
-            .addCase(signup.fulfilled, fulfilled)
+            .addCase(signup.fulfilled, (state) => {
+                state.status = "success";
+                state.error = null;
+            })
             .addCase(signup.rejected, rejected)
             .addCase (logout.pending,pending)  
             .addCase(logout.fulfilled,(state)=>{

@@ -1,171 +1,3 @@
-// const express = require("express");
-// const cors = require("cors");
-// const cookieParser = require("cookie-parser");
-// const { authRouter } = require("./routes/auth.routers");
-// const http  = require("http");
-// const { Server } = require("socket.io");
-// const mongoose = require("mongoose");
-// const jwt = require("jsonwebtoken");
-// const { User } = require("./models/user.model");
-// require("dotenv").config();
-
-// const app = express();
-// app.use(express.json());
-// app.use(cookieParser());
-// app.use(cors({
-//     origin:["http://localhost:5173"],
-//     credentials: true,
-// }));
-
-// app.use("/api/v1/auth", authRouter);
-
-// const PORT = process.env.PORT || 5001;
-// const MONGODB_URI = process.env.MONGODB_URI;
-
-// const server = http.createServer(app);
-// const io = new Server(server, {
-//     cors: {
-//         origin: ["http://localhost:5173"],
-//         credentials : true,
-//     }
-// });
-// //Socket.io middleware
-// io.use(async(socket,next) =>{
-// try{
-//     const cookieHeader = socket.handshake.headers.cookie || "";
-//     // cookieHeader = "cookie1=value1;cookie2=value2;accessToken=tokenValue;...."
-//     const cookiesArray = cookieHeader
-//     .split(";")
-//     .map((c) => c.trim())
-//     .filter(Boolean)
-//     .map((c) => {
-//         let idx = c.indexOf("=");
-//         return[c.slice(0,idx), decodeURIComponent(c.slice(idx + 1))];
-//     });
-
-//     const cookies = Object.fromEntries(cookiesArray);
-
-//     let {accessToken } = cookies;
-//     if(!accessToken){
-//         return next(new Error("Missing accessToken"));
-//     }
-//     const payload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
-
-//     const user = await User.findById(payload.sub).select("-passwordHash");
-//     if(!user){
-//         return next (new Error("Unable to find user"));
-//     }
-//     socket.user = user;
-//     return next();
-// } catch(err){
-//     return next(new Error("Unauthorized"));
-// }
-// });
-// //helper function
-// function getRoomCode(len=6){
-//     let chars ="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-//     let code ="";
-//     for (let i =0;i<len; i++){
-//         code += chars[Math.floor(Math.random()*chars.length)];
-//     }
-//     return code;
-    
-// }
-
-// //map of all the rooms,stored in memory
-// const rooms = new Map();
-// //roomcode->room
-// //roomcode->{roomcode,players:[{userId,socketId,name}],status:"waiting"|"ready",createdAt{}}
-
-// io.on("connection",(socket) =>{
-//     console.log(`A user connected on socket ${socket.id}`);
-
-//     //handler for the event->"room:create"
-//     socket.on("room:create",(ack)=>{
-//         try{
-//         let roomCode = getRoomCode();
-//         //creating  new room code untill we get a unique code
-//         while(rooms.has(roomCode)){
-//             roomCode = getRoomCode();
-
-//         }
-//         const newRoom ={
-//             roomCode,
-//             players:[],
-//             status:"waiting",
-//             createdAt:Date.now(),
-//         };
-//         socket.join(roomCode);
-//         newRoom.players.push({
-//             name: socket.user.name,
-//             socketId: socket.id,
-//             userId: socket.user._id,
-//         });
-//         rooms.set(roomCode, newRoom);
-//         io.to(roomCode).emit("room:presence",newRoom);
-//         return ack ?.({ok: true,room:newRoom});
-//     }catch(err){
-//         return ack ?.({ok:false,message:err.message ||"create room failed"});
-//     }
-//     });
-//     socket.on("room:join",(roomCode,ack)=>{
-//         try{
-//             console.log(`A user tried to join the room ${roomCode}`);
-//             const existingRoom = rooms.get(roomCode);
-//              if(!existingRoom){
-//                 return ack ?.({ok:false,message:"Invalid Room Code"});
-//              }
-//              const already=existingRoom.players.some(
-//                 (p)=>p.userId.toString() === socket.user._id.toString(),
-//              );
-//               if(!already){
-//                 if(existingRoom.players.length === 2){
-//                     return ack ?.({ok:false,message :"Room is full"});
-//                 }
-//                 existingRoom.players.push({
-//                     userId:socket.user._id,
-//                     name:socket.user.name,
-//                     socketId:socket.id,
-//              });
-//             } else{
-//                 existingRoom.players = existingRoom.players.map(
-//                     (p)=>{
-//                         if(p.userId.toString() === socket.user._id.toString()){
-//                             return {...p,socketId:socket.id};
-//                         }
-//                         return p;
-//                     });
-//                 }
-//                 existingRoom.status = existingRoom.players.length === 2 ? "ready" :"waiting";
-//                 socket.join(roomCode);
-//                 io.to(roomCode).emit("room:presence",existingRoom);
-//                 return ack ?.({ok:true,room:existingRoom});
-//         }catch(err){
-//             return ack ?.({ok:false,message:err.message ||"Failed to join room"
-
-//             });
-//         }
-//     });
-
-// });
-     
-
-// //"room:leave" event handler
-// socket.on("room:leave",(roomCode,ack)=>{
-//     // Goal: remove the current user from the room
-//     // If room does not exist return with error: { ok: false, message: "Room does not exist" }
-//     // Remove the user by filtering out the player from the room.players
-//     // If room is empty rooms.delete(roomCode)
-
-// });
-
-
-// server.listen(PORT,()=> console.log("Server is listening on port",PORT));
-// mongoose
-//     .connect(MONGODB_URI)
-//     .then(()=> console.log("Successfully Connected to DB"))
-//     .catch((err) => console.log("Failed to connect to DB",err.message));
-
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -176,6 +8,11 @@ const http = require("http");
 const jwt = require("jsonwebtoken");
 const { User } = require("./models/user.model");
 const { Chess } = require("chess.js");
+const { Game } = require("./models/game.model");
+const { leaderboardRouter } = require("./routes/leaderboard.router");
+const { verifyAuth } = require("./middlewares/verifyAuth");
+const parser = require("./utilities/upload");
+const { leaderboardRouter } = require("./routes/leaderboard.router");
 require("dotenv").config();
 
 const app = express();
@@ -189,6 +26,16 @@ app.use(
 );
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/leaderboard", leaderboardRouter);
+// //app.post("api/v1/upload", verifyAuth, parser.single("file"), (req, res) => {
+//   // something inside upload.
+//   //try {
+//     const url = req.file.path;
+//     return res.status(200).json({ avatar: url });
+//   } catch (err) {
+//     return res.status(500).json({ message: err.message });
+//   }
+// });
 
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -220,26 +67,48 @@ io.use(async (socket, next) => {
     const cookies = Object.fromEntries(cookiesArray);
     // cookies = {cookie1: value1, cookie2: value2, accessToken: tokenValue, .......}
     let { accessToken } = cookies;
-    if (!accessToken) {
-      return next(new Error("Missing accessToken"));
-    }
-    const payload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
-    // payload : { sub: value user._id, role: "USER" | "ADMIN" }
-    const user = await User.findById(payload.sub).select("-passwordHash");
+    let {guestId,guestName} = socket.handshake.auth;
+    console.log("Socket Middleware -> ", { accessToken,guestId,guestName });
+    if (accessToken) {
+      const payload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
+        // payload : { sub: value user._id, role: "USER" | "ADMIN" }
+      const user = await User.findById(payload.sub).select("-passwordHash");
+      //return next(new Error("Missing accessToken"));
+    
     if (!user) {
       return next(new Error("Unable to find user"));
     }
     socket.user = user;
     return next();
-  } catch (err) {
-    return next(new Error("Unauthorized"));
   }
+   
+  if(guestId && guestName){
+    socket.user ={
+      _id:guestId,
+      name:guestName,
+      role:"guest",
+    };
+    return next();
+  }
+  if(!accessToken){
+    return next(newError("missing accessToken"));
+  }
+  return next();
+
+}catch (err){
+  return next(new Error("Unauthorized"));
+}
 });
 
 function getPublicRoom(room) {
   return {
     roomCode: room.roomCode,
-    players: room.players.map((p) => ({ userId: p.userId, name: p.name })),
+    players: room.players.map((p) => ({ 
+      userId: p.userId,
+       name: p.name,
+       role:p.role,
+      })),
+      spectators: room.spectators,
     status: room.status,
     createdAt: room.createdAt,
     fen: room.fen,
@@ -259,6 +128,14 @@ function getPublicState(room) {
     lastMove: room.lastMove,
   };
 }
+function getPublicClock(room) {
+  return {
+    ...room.clock,
+    roomCode: room.roomCode,
+  };
+}
+
+
 
 // helper function
 function getRoomCode(len = 6) {
@@ -269,20 +146,34 @@ function getRoomCode(len = 6) {
   }
   return code;
 }
+// return: score between 1-0
+function getExpectedScore(r1, r2) {
+  return 1 / (1 + Math.pow(10, (r2 - r1) / 400));
+}
 // map of all the rooms, stored in memory
 const rooms = new Map();
 // roomCode -> room
 // roomCode ->
 //  {
 //    roomCode,
-//    players: [{userId, socketId, name}],
+//    players: [{userId, socketId, name, role}],
+//.   spectators: [{userId, socketId, name, role}]
 //    status: "waiting" | "ready",
 //    createdAt,
 //    game: new Chess(),
 //    fen: new Chess().fen(),
 //    whiteId,
 //    blackId,
-//    lastMove
+//    lastMove,
+//    timeControle: { baseMs, incrementMs } // baseMs -> 5 min, incrementMs -> 0
+//    clock: {
+//      whiteMs: baseMs,
+//      blackMs: baseMs,
+//      active: 'w',
+//      lastSwitchAt: null // timestamp of the last move
+//      running: false
+//    }
+//    chat: []
 //  }
 
 async function saveGameDetailsToUser(room,result,resaon){
@@ -290,6 +181,23 @@ async function saveGameDetailsToUser(room,result,resaon){
     const blackId = room.blackId;
     const white  = await User.findById(whiteId);
     const black = await User.findById(blackId);
+    let K=32;
+    //eW-expected white scores
+    let eW =getExpectedScore(white.stats.rating,black.stats.rating);
+    //eB - expected black scores
+    let eB = 1-eW;
+    //actual white and black scores
+    let sW,sB;
+     if (result === "white") {
+    sW = 1;
+    sB = 0;
+  } else if (result === "black") {
+    sW = 0;
+    sB = 1;
+  } else {
+    sW = 0.5;
+    sB = 0.5;
+  }
     if(result === "draw"){
         white.stats.draws +=1;
         white.stats.gamesPlayed +=1;
@@ -320,6 +228,8 @@ async function saveGameDetailsToUser(room,result,resaon){
     white.stats.gamesPlayed +=1;
     white.stats.currentStreak =0;
  }
+white.stats.rating = white.stats.rating + K*(sW -eW);
+black.stats.rating = black.stats.rating + K*(sB -eB);
  await white.save();
  await black.save();
 
@@ -330,6 +240,7 @@ io.on("connection", (socket) => {
 
   // handler for the event -> "room:create"
   socket.on("room:create", (ack) => {
+      console.log(`User ${socket.user.name}`);
     try {
       let roomCode = getRoomCode();
       // Creating new room code until we get to a unique code
@@ -340,6 +251,7 @@ io.on("connection", (socket) => {
       const newRoom = {
         roomCode,
         players: [],
+        spectators: [],
         status: "waiting",
         createdAt: Date.now(),
         game: new Chess(),
@@ -353,7 +265,21 @@ io.on("connection", (socket) => {
         name: socket.user.name,
         socketId: socket.id,
         userId: socket.user._id,
+        role:socket.user.role,
       });
+
+      //All the clock related information
+      const baseMs=5*60*1000;
+      const incrementsMs =0;
+      newRoom.timeControl = {baseMs,incrementsMs};
+      newRoom.clock ={
+        whiteMs:baseMs,
+        blackMs:baseMs,
+        active:"w",
+        lastSwitchAt:null,
+        running:false,
+      };
+      newRoom.chat =[];
       rooms.set(roomCode, newRoom);
       io.to(roomCode).emit("room:presence", getPublicRoom(newRoom));
       return ack?.({ ok: true, room: getPublicRoom(newRoom) });
@@ -372,6 +298,12 @@ io.on("connection", (socket) => {
       const already = existingRoom.players.some(
         (p) => p.userId.toString() === socket.user._id.toString(),
       );
+      const isSpectator = existingRoom.spectators.some(
+        (s)=>s.userId.toString() ===  socket.user._id.toString(),
+      );
+      if(isSpectator){
+        return ack?.({ok:true,room:getPublicRoom(existingRoom)})
+      }
       if (!already) {
         if (existingRoom.players.length === 2) {
           return ack?.({ ok: false, message: "Room is full" });
@@ -380,6 +312,7 @@ io.on("connection", (socket) => {
           userId: socket.user._id,
           name: socket.user.name,
           socketId: socket.id,
+          role: socket.user.role,
         });
       } else {
         existingRoom.players = existingRoom.players.map((p) => {
@@ -395,6 +328,51 @@ io.on("connection", (socket) => {
         existingRoom.status = "ready";
         existingRoom.whiteId = existingRoom.players[0].userId;
         existingRoom.blackId = existingRoom.players[1].userId;
+      
+
+      // instializing  the clock 
+      existingRoom.clock.running = true;
+      existingRoom.clock.lastSwitchAt = Date.now();
+      existingRoom.clock.active = "w";
+      }
+
+      socket.join(roomCode);
+      io.to(roomCode).emit("clock:update",getPublicClock(existingRoom))
+      io.to(roomCode).emit("room:presence", getPublicRoom(existingRoom));
+      return ack?.({ ok: true, room: getPublicRoom(existingRoom) });
+    } catch (err) {
+      return ack?.({
+        ok: false,
+        message: err.message || "Failed to join the room",
+      });
+    }
+  });
+   socket.on("room:join-spectator", (roomCode, ack) => {
+    try {
+      console.log(`User tried to join room as spectator ${roomCode}`);
+      const existingRoom = rooms.get(roomCode);
+      if (!existingRoom)
+        return ack?.({ ok: false, message: "Room does not exist" });
+      const already = existingRoom.spectators.some(
+        (s) => s.userId.toString() === socket.user._id.toString(),
+      );
+      if (already) {
+        existingRoom.spectators = existingRoom.spectators.map((s) => {
+          if (s.userId.toString() === socket.user._id.toString()) {
+            return { ...s, socketId: socket.id };
+          }
+          return p;
+        });
+      } else {
+        if (existingRoom.spectators.length === 50) {
+          return ack?.({ ok: false, message: "Room is full" });
+        }
+        existingRoom.spectators.push({
+          userId: socket.user._id,
+          name: socket.user.name,
+          role: socket.user.role,
+          socketId: socket.id,
+        });
       }
       socket.join(roomCode);
       io.to(roomCode).emit("room:presence", getPublicRoom(existingRoom));
@@ -402,7 +380,7 @@ io.on("connection", (socket) => {
     } catch (err) {
       return ack?.({
         ok: false,
-        message: err.message || "Failed to join the room",
+        message: err.message || "Unable to join room as a spectator",
       });
     }
   });
@@ -419,6 +397,10 @@ io.on("connection", (socket) => {
       // Remove the user by filtering out the player from the room.players
       room.players = room.players.filter(
         (p) => p.userId.toString() !== socket.user._id.toString(),
+      );
+      room.spectators = room.spectators.filter(
+        (s)=> s.userId.toString() === socket.user._id.toString(),
+
       );
       // Update the status of the room
       room.status = room.players.length === 2 ? "ready" : "waiting";
@@ -441,13 +423,19 @@ io.on("connection", (socket) => {
   socket.on("game:state", (roomCode, ack) => {
     const room = rooms.get(roomCode);
     if (!room) return ack?.({ ok: false, message: "Room does not exist" });
-    return ack?.({ ok: true, state: getPublicState(room) });
+    return ack?.({ 
+      ok: true, 
+      state: getPublicState(room),
+      clock: getPublicClock(room) });
   });
 
-  socket.on("game:move", async(roomCode, from, to, promotion, ack) => {
+  socket.on("game:move", async (roomCode, from, to, promotion, ack) => {
     try {
       const room = rooms.get(roomCode);
       if (!room) return ack?.({ ok: false, message: "Room does not exist" });
+      if (!room.whiteId || !room.blackId) {
+        return ack?.({ ok: false, message: "Wait for other player to join" });
+      }
       let player = "none";
       if (socket.user._id.toString() === room.whiteId.toString()) {
         player = "w";
@@ -470,35 +458,131 @@ io.on("connection", (socket) => {
         return ack?.({ ok: false, message: "Invalid move" });
       }
       room.lastMove = { from, to, san: move.san };
+      // Update the clock
+      const now = Date.now();
+      const elapsed = now - room.clock.lastSwitchAt;
+      if (player === "w") {
+        room.clock.whiteMs -= elapsed;
+        room.clock.whiteMs += room.timeControl.incrementMs;
+        room.clock.active = "b";
+      } else {
+        room.clock.blackMs -= elapsed;
+        room.clock.blackMs += room.timeControl.incrementMs;
+        room.clock.active = "w";
+      }
+      // clamp the times
+      room.clock.whiteMs = Math.max(0, room.clock.whiteMs);
+      room.clock.blackMs = Math.max(0, room.clock.blackMs);
+      room.clock.lastSwitchAt = now;
+      io.to(roomCode).emit("clock:update", getPublicClock(room));
+      // Game ends due to timeout
+      if (room.clock.whiteMs === 0 || room.clock.blackMs === 0) {
+        // game is over
+        room.clock.running = false;
+        const result = room.clock.whiteMs === 0 ? "black" : "white";
+        const reason = "timeout";
+        io.to(roomCode).emit("game:over", result);
+        const guest = room.players.some((p) => p.role === "guest");
+        if (guest) {
+          return;
+        }
+        const game = new Game({
+          roomCode,
+          whiteId: room.whiteId,
+          blackId: room.blackId,
+          reason,
+          result,
+          startedAt: new Date(room.createdAt),
+          endedAt: Date.now(),
+          duration: Date.now() - room.createdAt,
+        });
+        await game.save();
+        await saveGameDetailsToUser(room, result, reason);
+      }
       io.to(roomCode).emit("game:update", getPublicState(room));
       // check if the game is over or not
       if (room.game.isGameOver()) {
         let reason = "other";
         let result = "draw";
         if (room.game.isCheckmate()) {
+          reason = "checkmate";
           result = turn === "w" ? "white" : "black";
-        }else if (room.game.isDraw()) {
+        } else if (room.game.isDraw()) {
           result = "draw";
           reason = "draw";
         }
-        const game =new Game({
-            roomCode,
-            whiteId:room.whiteId,
-            blackId:room.blackId,
-            reason,
-            result,
-            startedAt:new Date(room.createdAt),
-            endedAt:Date.now(),
-            duration:Date.now()-room.createdAt,
+        io.to(roomCode).emit("game:over", result);
+        const guest = room.players.some((p) => p.role === "guest");
+        if (guest) {
+          return;
+        }
+        const game = new Game({
+          roomCode,
+          whiteId: room.whiteId,
+          blackId: room.blackId,
+          reason,
+          result,
+          startedAt: new Date(room.createdAt),
+          endedAt: Date.now(),
+          duration: Date.now() - room.createdAt,
         });
         await game.save();
-        await saveGameDetailsToUser(room,result,reason);
-        io.to(roomCode).emit("game:over", result);
+        await saveGameDetailsToUser(room, result, reason);
       }
     } catch (err) {
       return ack?.({
         ok: false,
         message: err.message || "Unable to make the move",
+      });
+    }
+  });
+
+  socket.on("chat:send", (roomCode, text, ack) => {
+    try {
+      console.log(`User tried to send a message ${text}`);
+      const room = rooms.get(roomCode);
+      if (!room) return ack?.({ ok: false, message: "Room does not exist" });
+      // Basic validation on text
+      const clean = text.trim();
+      if (!clean) return ack?.({ ok: false, message: "Empty message" });
+      if (clean.length > 300)
+        return ack?.({ ok: false, message: "Text too long" });
+      const isPlayer = room.players.some(
+        (p) => p.userId.toString() === socket.user._id.toString(),
+      );
+      const isSpectator = room.spectators.some(
+        (s) => s.userId.toString() === socket.user._id.toString(),
+      );
+      const isMember = isPlayer || isSpectator;
+      if (!isMember) return ack?.({ ok: false, message: "Not a valid user" });
+      const message = {
+        userId: socket.user._id.toString(),
+        name: socket.user.name,
+        text: clean,
+        timestamp: Date.now(),
+      };
+      room.chat.push(message);
+      // If chat history is more that 50, remove the oldest chat
+      if (room.chat.length > 50) room.chat.shift();
+      io.to(roomCode).emit("chat:message", message);
+      return ack?.({ ok: true, message });
+    } catch (err) {
+      return ack?.({
+        ok: false,
+        message: err.message || "Failed to send message",
+      });
+    }
+  });
+
+  socket.on("chat:history", (roomCode, ack) => {
+    try {
+      const room = rooms.get(roomCode);
+      if (!room) return ack?.({ ok: false, message: "Room does not exist" });
+      return ack?.({ ok: true, messages: room.chat || [] });
+    } catch (err) {
+      return ack?.({
+        ok: false,
+        message: err.message || "Failed to get chat history",
       });
     }
   });
