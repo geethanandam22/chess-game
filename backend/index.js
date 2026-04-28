@@ -7,9 +7,9 @@ const { Server } = require("socket.io");
 const http = require("http");
 const jwt = require("jsonwebtoken");
 const { Chess } = require("chess.js");
-const { leaderboard } = require("./controllers/leaderboard.controllers");
 const { verifyAuth } = require("./middlewares/verifyAuth");
 const { User } = require("./models/user.model");
+const { leaderboardRouter } = require("./routes/leaderboard.router");
 
 require("dotenv").config();
 
@@ -26,7 +26,7 @@ app.use(cookieParser());
 
 /* ================= ROUTES ================= */
 app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/leaderboard",  leaderboard);
+app.use("/api/v1/leaderboard",  leaderboardRouter);
 
 /* ================= DB ================= */
 const PORT = process.env.PORT|| 3001;
