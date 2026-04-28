@@ -6,54 +6,50 @@ const { authRouter } = require("./routes/auth.routers");
 const { Server } = require("socket.io");
 const http = require("http");
 const jwt = require("jsonwebtoken");
-const { User } = require("./models/user.model");
 const { Chess } = require("chess.js");
-const { Game } = require("./models/game.model");
-const { leaderboardRouter } = require("./routes/leaderboard.router");
+const { leaderboard } = require("./controllers/leaderboard.controllers");
 const { verifyAuth } = require("./middlewares/verifyAuth");
-const parser = require("./utilities/upload");
-const { leaderboardRouter } = require("./routes/leaderboard.router");
+const { User } = require("./models/user.model");
+
 require("dotenv").config();
 
 const app = express();
+
+/* ================= MIDDLEWARE ================= */
+app.use(cors({
+  origin:  ["http://localhost:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE","PATCH","OPTIONS","PUSH"],
+}));
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: ["http://localhost:5173"],
-    credentials: true,
-  }),
-);
 
+/* ================= ROUTES ================= */
 app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/leaderboard", leaderboardRouter);
-// //app.post("api/v1/upload", verifyAuth, parser.single("file"), (req, res) => {
-//   // something inside upload.
-//   //try {
-//     const url = req.file.path;
-//     return res.status(200).json({ avatar: url });
-//   } catch (err) {
-//     return res.status(500).json({ message: err.message });
-//   }
-// });
+app.use("/api/v1/leaderboard",  leaderboard);
 
-const PORT = process.env.PORT || 5001;
-const MONGODB_URI = process.env.MONGODB_URI;
+/* ================= DB ================= */
+const PORT = process.env.PORT|| 3001;
+mongoose.connect(process.env.MONGODB_URI)
+  // .then(() => console.log("DB Connected"))
+  // .catch(err => console.log(err.message));
 
+/* ================= SERVER ================= */
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin:  ["http://localhost:5173"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE","PATCH","OPTIONS","PUSH"],
   },
 });
 
-// Socket.io middleware
+/* ================= socket.io middleware ================= */
 io.use(async (socket, next) => {
   try {
     const cookieHeader = socket.handshake.headers.cookie || "";
-    // cookieHeader = "cookie1=value1;cookie2=value2;accessToken=tokenValue;..."
+// cookieHeader = "cookie1=value1;cookie2=value2;accessToken=tokenValue;...
     const cookiesArray = cookieHeader
       .split(";")
       .map((c) => c.trim())
@@ -66,49 +62,56 @@ io.use(async (socket, next) => {
     // cookiesArray = [["cookie1", "value1"], ["cookie2", "value2"], ["accessToken", "tokenValue"] .... ]
     const cookies = Object.fromEntries(cookiesArray);
     // cookies = {cookie1: value1, cookie2: value2, accessToken: tokenValue, .......}
+
     let { accessToken } = cookies;
-    let {guestId,guestName} = socket.handshake.auth;
-    console.log("Socket Middleware -> ", { accessToken,guestId,guestName });
+    let { guestId, guestName } = socket.handshake.auth;
+
     if (accessToken) {
       const payload = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
-        // payload : { sub: value user._id, role: "USER" | "ADMIN" }
       const user = await User.findById(payload.sub).select("-passwordHash");
-      //return next(new Error("Missing accessToken"));
-    
-    if (!user) {
-      return next(new Error("Unable to find user"));
+      //return next (new Error("Missing accessToken"))
+      if (!user) {
+        return next(new Error("Unable to find user"));
+      }
+      socket.user = user;
+      return next();
     }
-    socket.user = user;
-    return next();
-  }
-   
-  if(guestId && guestName){
-    socket.user ={
-      _id:guestId,
-      name:guestName,
-      role:"guest",
-    };
-    return next();
-  }
-  if(!accessToken){
-    return next(newError("missing accessToken"));
-  }
-  return next();
 
-}catch (err){
-  return next(new Error("Unauthorized"));
-}
+    if (guestId && guestName) {
+      socket.user = { 
+        _id: guestId, 
+        name: guestName, 
+        role: "guest",
+      };
+      return next();
+    }
+
+    if(!accessToken){
+      return next(new Error(" missing accessToken"));
+    }
+    return next();
+  } catch (err){
+    return next(new Error("Unauthorized"));
+  }
 });
+
+/* ================= ROOM STORAGE ================= */
+// const rooms = new Map();
+
+/* ================= HELPERS ================= */
+// function getRoomCode() {
+//   return Math.random().toString(36).substring(2, 8).toUpperCase();
+// }
 
 function getPublicRoom(room) {
   return {
     roomCode: room.roomCode,
-    players: room.players.map((p) => ({ 
+    players: room.players.map((p) => ({
       userId: p.userId,
-       name: p.name,
-       role:p.role,
-      })),
-      spectators: room.spectators,
+      name: p.name,
+      role: p.role,
+    })),
+    spectators: room.spectators,
     status: room.status,
     createdAt: room.createdAt,
     fen: room.fen,
@@ -128,15 +131,13 @@ function getPublicState(room) {
     lastMove: room.lastMove,
   };
 }
+
 function getPublicClock(room) {
   return {
     ...room.clock,
     roomCode: room.roomCode,
   };
 }
-
-
-
 // helper function
 function getRoomCode(len = 6) {
   let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -150,6 +151,7 @@ function getRoomCode(len = 6) {
 function getExpectedScore(r1, r2) {
   return 1 / (1 + Math.pow(10, (r2 - r1) / 400));
 }
+// map of all the rooms, stored in memory
 // map of all the rooms, stored in memory
 const rooms = new Map();
 // roomCode -> room
@@ -176,19 +178,19 @@ const rooms = new Map();
 //    chat: []
 //  }
 
-async function saveGameDetailsToUser(room,result,resaon){
-    const whiteId = room.whiteId;
-    const blackId = room.blackId;
-    const white  = await User.findById(whiteId);
-    const black = await User.findById(blackId);
-    let K=32;
-    //eW-expected white scores
-    let eW =getExpectedScore(white.stats.rating,black.stats.rating);
-    //eB - expected black scores
-    let eB = 1-eW;
-    //actual white and black scores
-    let sW,sB;
-     if (result === "white") {
+async function saveGameDetailsToUser(room, result, reason) {
+  const whiteId = room.whiteId;
+  const blackId = room.blackId;
+  const white = await User.findById(whiteId);
+  const black = await User.findById(blackId);
+  let K = 32;
+  // eW - expected white score
+  let eW = getExpectedScore(white.stats.rating, black.stats.rating);
+  // eB - expected black score
+  let eB = 1 - eW;
+  // actual white and black scores
+  let sW, sB;
+  if (result === "white") {
     sW = 1;
     sB = 0;
   } else if (result === "black") {
@@ -198,41 +200,40 @@ async function saveGameDetailsToUser(room,result,resaon){
     sW = 0.5;
     sB = 0.5;
   }
-    if(result === "draw"){
-        white.stats.draws +=1;
-        white.stats.gamesPlayed +=1;
-        white.stats.currentStreak =0;
-        black.stats.draw +=1;
-        black.stats.gamesPlayed +=1;
-        black.stats.currentStreak =0;
-    }else if(result === "white"){
-        white.stats.wins +=1;
-        white.stats.gamesPlayed +=1;
-        white.stats.currentStreak +=1;
-        white.stats.bestStreak = Math.max(
-            white.stats.bestStreak,
-            white.stats.currentStreak,
+  if (result === "draw") {
+    white.stats.draws += 1;
+    white.stats.gamesPlayed += 1;
+    white.stats.currentStreak = 0;
+    black.stats.draws += 1;
+    black.stats.gamesPlayed += 1;
+    black.stats.currentStreak = 0;
+  } else if (result === "white") {
+    white.stats.wins += 1;
+    white.stats.gamesPlayed += 1;
+    white.stats.currentStreak += 1;
+    white.stats.bestStreak = Math.max(
+      white.stats.bestStreak,
+      white.stats.currentStreak,
     );
-    black.stats.losses +=1;
-    black.stats.gamesPlayed +=1;
-    black.stats.currentStreak =0;
- }else if (result === "black"){
-    black.stats.wins +=1;
-    black.stats.gamesPlayed +=1;
-    black.stats.currentStreak +=1;
-    black.stats.bestStreak =Math.max(
-        black.stats.bestStreak,
-        black.stats.currentStreak,
+    black.stats.losses += 1;
+    black.stats.gamesPlayed += 1;
+    black.stats.currentStreak = 0;
+  } else if (result === "black") {
+    black.stats.wins += 1;
+    black.stats.gamesPlayed += 1;
+    black.stats.currentStreak += 1;
+    black.stats.bestStreak = Math.max(
+      black.stats.bestStreak,
+      black.stats.currentStreak,
     );
-    white.stats.losses +=1;
-    white.stats.gamesPlayed +=1;
-    white.stats.currentStreak =0;
- }
-white.stats.rating = white.stats.rating + K*(sW -eW);
-black.stats.rating = black.stats.rating + K*(sB -eB);
- await white.save();
- await black.save();
-
+    white.stats.losses += 1;
+    white.stats.gamesPlayed += 1;
+    white.stats.currentStreak = 0;
+  }
+  white.stats.rating = white.stats.rating + K * (sW - eW);
+  black.stats.rating = black.stats.rating + K * (sB - eB);
+  await white.save();
+  await black.save();
 }
 
 io.on("connection", (socket) => {
@@ -240,7 +241,6 @@ io.on("connection", (socket) => {
 
   // handler for the event -> "room:create"
   socket.on("room:create", (ack) => {
-      console.log(`User ${socket.user.name}`);
     try {
       let roomCode = getRoomCode();
       // Creating new room code until we get to a unique code
@@ -265,21 +265,20 @@ io.on("connection", (socket) => {
         name: socket.user.name,
         socketId: socket.id,
         userId: socket.user._id,
-        role:socket.user.role,
+        role: socket.user.role,
       });
-
-      //All the clock related information
-      const baseMs=5*60*1000;
-      const incrementsMs =0;
-      newRoom.timeControl = {baseMs,incrementsMs};
-      newRoom.clock ={
-        whiteMs:baseMs,
-        blackMs:baseMs,
-        active:"w",
-        lastSwitchAt:null,
-        running:false,
+      // All the clock related information
+      const baseMs = 5 * 60 * 1000;
+      const incrementMs = 0;
+      newRoom.timeControl = { baseMs, incrementMs };
+      newRoom.clock = {
+        whiteMs: baseMs,
+        blackMs: baseMs,
+        active: "w",
+        lastSwitchAt: null,
+        running: false,
       };
-      newRoom.chat =[];
+      newRoom.chat = [];
       rooms.set(roomCode, newRoom);
       io.to(roomCode).emit("room:presence", getPublicRoom(newRoom));
       return ack?.({ ok: true, room: getPublicRoom(newRoom) });
@@ -299,10 +298,10 @@ io.on("connection", (socket) => {
         (p) => p.userId.toString() === socket.user._id.toString(),
       );
       const isSpectator = existingRoom.spectators.some(
-        (s)=>s.userId.toString() ===  socket.user._id.toString(),
+        (s) => s.userId.toString() === socket.user._id.toString(),
       );
-      if(isSpectator){
-        return ack?.({ok:true,room:getPublicRoom(existingRoom)})
+      if (isSpectator) {
+        return ack?.({ ok: true, room: getPublicRoom(existingRoom) });
       }
       if (!already) {
         if (existingRoom.players.length === 2) {
@@ -328,16 +327,13 @@ io.on("connection", (socket) => {
         existingRoom.status = "ready";
         existingRoom.whiteId = existingRoom.players[0].userId;
         existingRoom.blackId = existingRoom.players[1].userId;
-      
-
-      // instializing  the clock 
-      existingRoom.clock.running = true;
-      existingRoom.clock.lastSwitchAt = Date.now();
-      existingRoom.clock.active = "w";
+        // Initializing the clock
+        existingRoom.clock.running = true;
+        existingRoom.clock.lastSwitchAt = Date.now();
+        existingRoom.clock.active = "w";
       }
-
       socket.join(roomCode);
-      io.to(roomCode).emit("clock:update",getPublicClock(existingRoom))
+      io.to(roomCode).emit("clock:update", getPublicClock(existingRoom));
       io.to(roomCode).emit("room:presence", getPublicRoom(existingRoom));
       return ack?.({ ok: true, room: getPublicRoom(existingRoom) });
     } catch (err) {
@@ -347,7 +343,8 @@ io.on("connection", (socket) => {
       });
     }
   });
-   socket.on("room:join-spectator", (roomCode, ack) => {
+
+  socket.on("room:join-spectator", (roomCode, ack) => {
     try {
       console.log(`User tried to join room as spectator ${roomCode}`);
       const existingRoom = rooms.get(roomCode);
@@ -390,6 +387,7 @@ io.on("connection", (socket) => {
     try {
       // Goal: remove the current user from the room
       // If room does not exist return with error: { ok: false, message: "Room does not exist" }
+      console.log(`User tried to leave room ${roomCode}`);
       const room = rooms.get(roomCode);
       if (!room) {
         return ack?.({ ok: false, message: "Room does not exist" });
@@ -399,8 +397,7 @@ io.on("connection", (socket) => {
         (p) => p.userId.toString() !== socket.user._id.toString(),
       );
       room.spectators = room.spectators.filter(
-        (s)=> s.userId.toString() === socket.user._id.toString(),
-
+        (s) => s.userId.toString() === socket.user._id.toString(),
       );
       // Update the status of the room
       room.status = room.players.length === 2 ? "ready" : "waiting";
@@ -423,10 +420,11 @@ io.on("connection", (socket) => {
   socket.on("game:state", (roomCode, ack) => {
     const room = rooms.get(roomCode);
     if (!room) return ack?.({ ok: false, message: "Room does not exist" });
-    return ack?.({ 
-      ok: true, 
+    return ack?.({
+      ok: true,
       state: getPublicState(room),
-      clock: getPublicClock(room) });
+      clock: getPublicClock(room),
+    });
   });
 
   socket.on("game:move", async (roomCode, from, to, promotion, ack) => {
@@ -590,6 +588,8 @@ io.on("connection", (socket) => {
 
 server.listen(PORT, () => console.log("Sever is listening on port", PORT));
 mongoose
-  .connect(MONGODB_URI)
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("Successfully connected to DB"))
   .catch((err) => console.log("Failed to connect to DB", err.message));
+
+

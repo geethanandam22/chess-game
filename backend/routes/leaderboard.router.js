@@ -3,8 +3,8 @@ const { verifyAuth } = require("../middlewares/verifyAuth");
 const { leaderboard } = require("../controllers/leaderboard.controlers");
 
 
-const leaderboaardRouter = express.Router();
+const leaderboardRouter = express.Router();
 
-leaderboaardRouter.get("/",verifyAuth,leaderboard);
+leaderboardRouter.get("/",verifyAuth,leaderboard);
 
-module.exports = {leaderboaardRouter}
+module.exports = {leaderboardRouter}

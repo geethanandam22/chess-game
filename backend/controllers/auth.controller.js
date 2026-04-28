@@ -99,7 +99,8 @@ const logout = (req, res) => {
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
-};const refresh = async (req, res) => {
+};
+const refresh = async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
     if (!refreshToken) {
