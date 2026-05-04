@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gustavotoyota/react-chessboard": "^4.1.8",
+    "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

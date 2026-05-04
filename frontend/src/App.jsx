@@ -1,6 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { Login } from "./pages/Login";
-import { Signup } from "./pages/signup";
+import { Signup } from "./pages/Signup";
 import { Lobby } from "./pages/Lobby";
 import { Navbar } from "./components/Navbar";
 import { ProtectedRoutes } from "./components/ProtectedRoutes";
